@@ -9,6 +9,6 @@ To test the program:
 ```ruby
 git clone https://github.com/sercangul/FluidLab_GUI.git
 cd FluidLab_GUI
-pip install streamlit
+pip install -r requirements.txt
 streamlit run app.py
 ```
