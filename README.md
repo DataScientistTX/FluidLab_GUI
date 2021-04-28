@@ -42,6 +42,7 @@ Run the script using Streamlit:
 
 ```bash
 streamlit run app.py
+```
 
 ## License
 [MIT License](https://choosealicense.com/licenses/mit/)
