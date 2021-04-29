@@ -15,7 +15,7 @@ git clone https://github.com/sercangul/FluidLab_GUI.git
 Change directories to the new ~/FluidLab_GUI directory:
 
 ```bash
-cd ~/FluidLab_GUI/
+cd FluidLab_GUI
 ```
 
 To ensure that your master branch is up-to-date, use the pull command:
@@ -35,7 +35,7 @@ pip install -r requirements.txt
 Change directories to the new ~/FluidLab_GUI directory:
 
 ```bash
-cd ~/FluidLab_GUI/
+cd FluidLab_GUI
 ```
 
 Run the script using Streamlit:
