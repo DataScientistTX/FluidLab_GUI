@@ -132,5 +132,3 @@ def getpH(): #returns pH and temp
 #     print(d, file = outFile)
 #     outFile.flush()
 #     time.sleep(1)
-#
-
