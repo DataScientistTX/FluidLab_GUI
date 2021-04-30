@@ -21,7 +21,7 @@ cd FluidLab_GUI
 To ensure that your master branch is up-to-date, use the pull command:
 
 ```bash
-git pull https://github.com/sercangul/FluidLab_GUI.git master
+git pull https://github.com/sercangul/FluidLab_GUI.git main
 ```
 
 Install required python packages using requirements.txt:
