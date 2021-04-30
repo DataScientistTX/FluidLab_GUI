@@ -9,8 +9,7 @@ import time
 import sys
 import threading
 import RPi.GPIO as GPIO
-from pymodbus.client.sync import ModbusSerialClient
-import serial.tools.list_ports as portlist
+
 
 init()
 output = Mod2AO(False)
@@ -28,6 +27,8 @@ pump = ModbusSerialClient(
     stopbits=1,
     bytesize=8
 )
+pump.connect()
+
 flowmeter = ModbusSerialClient(
     method='rtu',
     port='/dev/ttyACM0',
@@ -38,25 +39,13 @@ flowmeter = ModbusSerialClient(
     bytesize=8
 )
 
-pump.connect()
 flowmeter.connect()
 
-def setPumpSpeed(speed):
-    pump.write_register(1, speed, unit=1)
-
-def runPump():
-    pump.write_register(0,1,unit=1)
-
-def stopPump():
-    pump.write_register(0,0,unit=1)
-    
+#flowmeter functions
 def getFlowrate():
-    try:
-        flowrate=flowmeter.read_holding_registers(address = 4,count=1,unit=1).registers[0]
-        flowratescale=flowmeter.read_holding_registers(address = 31,count=1,unit=1).registers[0]
-        return flowrate/flowratescale
-    except:
-        return 0
+    flowrate=flowmeter.read_holding_registers(address = 4,count=1,unit=1).registers[0]
+    flowratescale=flowmeter.read_holding_registers(address = 31,count=1,unit=1).registers[0]
+    return flowrate/flowratescale
 
 def getDensity():
     density=flowmeter.read_holding_registers(address = 2,count=1,unit=1).registers[0]
@@ -68,26 +57,47 @@ def getTemp():
     tempscale=flowmeter.read_holding_registers(address = 30,count=1,unit=1).registers[0]
     return temp/tempscale
 
+
+
+#pump functions
+def setPumpSpeed(speed):
+    pump.write_register(1,speed, unit=1)
+
+def getPumpSpeed():
+    return pump.read_holding_registers(address = 1,count=1,unit=1)[0]
+
+def getPumpStatus():
+    return pump.read_holding_registers(address = 0,count=1,unit=1)[0]
+
+def runPump():
+    pump.write_register(0, 1, unit=1)
+
+def stopPump():
+    pump.write_register(0, 0, unit=1)
+
+
+#control valve functions
 def addWater(time):  #opens water valve for time seconds
     stopAdd = threading.Timer(time, stopWater)
-    output2.write_single(1,1750)
+    output2.write_single(0,1750)
     print("Adding water for "+ str(time)+ " seconds.")
     stopAdd.start()
     
 def stopWater():
-    output2.write_single(1,0)
+    output2.write_single(0,0)
     print("Done")
 
-def dumpMud(time):  #opens water valve for time seconds
+def dumpMud(time):  #opens 3-way valve for time seconds
     stopAdd = threading.Timer(time, stopDump)
-    output2.write_single(0,1750)
+    output2.write_single(1,1750)
     print("Dumping Mud for "+ str(time)+ " seconds.")
     stopAdd.start()
     
 def stopDump():
-    output2.write_single(0,0)
+    output2.write_single(1,0)
     print("Done")
-    
+
+#level sensor functions
 def distancethread():
     GPIO.setmode(GPIO.BCM)
     trigger=23
@@ -103,31 +113,24 @@ def distancethread():
     while GPIO.input(echo)==1:
         endtime=time.time()
     return (endtime-starttime)*34300/2
-#     start=time.time()
-#     arrived=False
-#     while time.time()-start<1:
-#         if GPIO.input(echo)==0 and not arrived:
-#             start=time.time()
-#         elif GPIO.input(echo)==0:
-#             bouncetime=time.time()-start
-#             GPIO.cleanup()
-#             #print(bouncetime*34300/2)
-#             return bouncetime*34300/2
-#         if GPIO.input(echo)==1:
-#             arrived=True
-
-def distance ():
+    
+def distance ():    #return distance in cm
     with concurrent.futures.ThreadPoolExecutor()as executor:
         future = executor.submit(distancethread)
         return future.result()
 
-def getpH(): #returns pH and temp
+
+#pH function
+def getpH():    #returns pH and temp
     return((counts_to_value(inputs.read_single(1), 745, 3723, 4, 20 )+.03)*.875-3.5, (counts_to_value(inputs.read_single(0), 745, 3723, 4, 20)+.03)*6.25-25)
 
-# outFile=open("30Lpumponmixeron.txt", "w")
-# while True:
-#     d=distance()
-#     print(d)
-#     print(d, file = outFile)
-#     outFile.flush()
-#     time.sleep(1)
+
+#pressure functions
+def getP1():    #get pressure values, P1 is leftmost sensor, P4 is rightmost sensor
+    return (inputs.read_single(4)-742.81)/59.694
+def getP2():
+    return (inputs.read_single(3)-745.05)/59.791
+def getP3():
+    return (inputs.read_single(5)-744.33)/59.68
+def getP4():
+    return (inputs.read_single(2)-743.19)/59.626
