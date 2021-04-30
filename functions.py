@@ -12,7 +12,6 @@ import RPi.GPIO as GPIO
 from pymodbus.client.sync import ModbusSerialClient
 import serial.tools.list_ports as portlist
 
-
 init()
 output = Mod2AO(False)
 output2=Mod2AO(True)
