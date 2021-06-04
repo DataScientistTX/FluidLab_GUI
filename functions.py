@@ -3,13 +3,13 @@ from widgetlords.pi_spi import *
 import numpy as np
 from widgetlords import *
 import concurrent.futures
-from pynput import mouse
 import pandas
 import time
 import sys
 import threading
 import RPi.GPIO as GPIO
-
+import pymodbus
+from pymodbus.client.sync import ModbusSerialClient
 
 init()
 output = Mod2AO(False)
@@ -43,14 +43,16 @@ flowmeter.connect()
 
 #flowmeter functions
 def getFlowrate():
+    
     flowrate=flowmeter.read_holding_registers(address = 4,count=1,unit=1).registers[0]
     flowratescale=flowmeter.read_holding_registers(address = 31,count=1,unit=1).registers[0]
     return flowrate/flowratescale
 
 def getDensity():
+    
     density=flowmeter.read_holding_registers(address = 2,count=1,unit=1).registers[0]
     densityscale=flowmeter.read_holding_registers(address = 29,count=1,unit=1).registers[0]
-    return density/densityscale
+    return density*8.334/densityscale
 
 def getTemp():
     temp=flowmeter.read_holding_registers(address = 3,count=1,unit=1).registers[0]
@@ -83,9 +85,16 @@ def addWater(time):  #opens water valve for time seconds
     print("Adding water for "+ str(time)+ " seconds.")
     stopAdd.start()
     
+def waterOn():
+    output2.write_single(0,1750)
+def mudOn():
+    #output2.write_single(1,1750)
+    print("not doing this again lol")
+
+    
 def stopWater():
     output2.write_single(0,0)
-    print("Done")
+    
 
 def dumpMud(time):  #opens 3-way valve for time seconds
     stopAdd = threading.Timer(time, stopDump)
@@ -95,7 +104,7 @@ def dumpMud(time):  #opens 3-way valve for time seconds
     
 def stopDump():
     output2.write_single(1,0)
-    print("Done")
+
 
 #level sensor functions
 def distancethread():

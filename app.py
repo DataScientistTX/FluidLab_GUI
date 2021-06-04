@@ -1,119 +1,106 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 26 13:01:07 2021
-
-@author: sercan
-"""
-#Libraries and settings
 import streamlit as st
 import time
-import matplotlib.pyplot as plt
 import numpy as np
 from collections import deque
+import SessionState
+import functions 
+import pandas as pd
+import altair as alt 
 
-#Set the "wide" layout
 st.set_page_config(layout='wide')
 
-#Settings for Matplotlib figures
 font = {'family' : 'normal',
+
         'weight' : 'normal',
+
         'size'   : 3}
 
-plt.rc('font', **font)
-
 #Set the title of the dashboard        
-st.title("Manual Controls")
 
-#Creating 5 columns for the layout
-col1, col2, col3, col4, col5 = st.beta_columns(5)
+st.title("Fluid Lab GUI")
+waterSlider, mudSlider, pumpSlider, dummy1,dummy2, pumpSpeedSlider= st.beta_columns(6)
+water = waterSlider.select_slider("Water Valve", ["On", "Off"], value = "Off")
 
-#Define a button response function, TODO:update the result of functions--------
-def button_response(col,text):
-    with col:
-        result = st.button(text)
-    if result:
-        st.write(text)
-
-#Create various buttons with their responses-----------------------------------
-button_response(col1, "3-way valve - On")
-button_response(col1, "3-way valve - Off")
-
-button_response(col2, "Water - On")
-button_response(col2, "Water - Off")
-
-button_response(col3, "Pump-on")
-button_response(col3, "Pump-off")
-
-button_response(col4,"Auto Mud Test - Start")
-button_response(col4, "Auto Mud Test - Stop")
-
-#Create a slider for the 5th column, to enter pump speed-----------------------
-with col5:
-    result = st.slider("Pump speed - Manual Entry",  
-                       min_value = 0, value = 0, max_value = 60, step=1)
-if result:
-    st.write("Pump-on with pump speed {}".format(result))
-
-#Side bars for the frequency steps of automated mud tests----------------------
-for i in range(10):
-    globals()['pumpspeed_{}'.format(i)] = st.sidebar.slider(
-        'Step {}'.format(i+1), 
-        min_value = 0, value = 50-i*5, max_value = 50, step=1)
-
-
-#TODO: Correct the visuals with real-time data-streams from sensors------------
-with st.beta_expander("Pressure Data"):
-    fig, ax = plt.subplots(3,3, figsize=(3,3))
-    max_samples = 100
-    max_x = max_samples
-    max_rand = 100
+if water=="On":
+    functions.waterOn()
+else:
+    functions.stopWater()
     
-    x = np.arange(0, max_x)
-    y = deque(np.zeros(max_samples), max_samples)
+mud = mudSlider.select_slider("Mud Valve", ["On", "Off"], value = "Off")
 
-    line1, = ax[0, 0].plot(x, np.array(y))
-    ax[0, 0].set_ylim(0, max_rand)
-    
-    line2, = ax[0, 1].plot(x, np.array(y))
-    ax[0, 1].set_ylim(0, max_rand)
-    
-    line3, = ax[0, 2].plot(x, np.array(y))
-    ax[0, 2].set_ylim(0, max_rand)
-    
-    line4, = ax[1, 0].plot(x, np.array(y))
-    ax[1, 0].set_ylim(0, max_rand)
-    
-    line5, = ax[1, 1].plot(x, np.array(y))
-    ax[1, 1].set_ylim(0, max_rand)
-    
-    line6, = ax[1, 2].plot(x, np.array(y))
-    ax[1, 2].set_ylim(0, max_rand)
-    
-    line7, = ax[2, 0].plot(x, np.array(y))
-    ax[2, 0].set_ylim(0, max_rand)
+if mud=="On":
+    functions.mudOn()
+else:
+    functions.stopDump()
 
-    line8, = ax[2, 1].plot(x, np.array(y))
-    ax[2, 1].set_ylim(0, max_rand)
+pump = pumpSlider.select_slider("Pump", ["On", "Off"], value = "On")
+
+if pump=="On":
+    functions.runPump()
+else:
+    functions.stopPump()
+
+pumpSpeed = pumpspeed = pumpSpeedSlider.slider("Pump Speed", 0, 20000,15000,1000)
+
+functions.setPumpSpeed(pumpSpeed)
+
+xanthanSlider,bariteSlider, dummy, dummy2,bariteSpeedSlider = st.beta_columns(5)
+
+xanthan = xanthanSlider.select_slider("Xanthan", ["On", "Off"])
+
+barite = bariteSlider.select_slider("Barite", ["On", "Off"])
+
+bariteSpeed = bariteSpeedSlider.slider("Barite Rate", 0, 100,0,1)
+
+st.markdown("***")
+
+aV ,aD = st.beta_columns(2)
+
+autoViscosity=aV.checkbox("Automatic Viscosity")
+
+autoDensity=aD.checkbox("Automatic Density")
+
+st.markdown("***")
+
+chart1 = st.empty()
+
+chart2 = st.empty()
+
+session = SessionState.get()
+
+try:
+    d=session.df==1
+except:
+    column_names = ["time", "P1", "P2", "delta", "Flowrate", "Temp", "Density"]
+    session.df = pd.DataFrame(columns = column_names)
+    session.startTime=time.time()
+
+counttime= time.time()
+while True:
+    print(time.time()-counttime) # performance indicator
+    counttime=time.time()
+
+    displayRange=100  #how much history to display
     
-    line9, = ax[2, 2].plot(x, np.array(y))
-    ax[2, 2].set_ylim(0, max_rand)
+    p1=functions.getP1()
+    p2=functions.getP2()
+    new_row = {"time":time.time()-session.startTime, "P1":p1, "P2":p2, "delta": p1-p2, "Flowrate": functions.getFlowrate(), "Temp": functions.getTemp(), "Density": functions.getDensity()}
+
+    #append row to the dataframe
+    session.df = session.df.append(new_row, ignore_index=True)
+
+    Pchart=alt.Chart(session.df.tail(displayRange)).mark_line().encode(x="time",y="P1")
+    P2chart=alt.Chart(session.df.tail(displayRange)).mark_line().encode(x="time",y="P2")
+    deltachart=alt.Chart(session.df.tail(displayRange)).mark_line().encode(x="time",y="delta")
+    chart1.altair_chart(Pchart|P2chart|deltachart,use_container_width=True)
+
+    FRchart=alt.Chart(session.df.tail(displayRange)).mark_line().encode(x="time",y="Flowrate")
+    Tempchart=alt.Chart(session.df.tail(displayRange)).mark_line().encode(x="time",y="Temp")
+    Densitychart=alt.Chart(session.df.tail(displayRange)).mark_line().encode(x="time",y="Density")
     
-    the_plot = st.pyplot(plt)
+    chart2.altair_chart(FRchart|Tempchart|Densitychart,use_container_width=True)
+
     
-    def animate():  # update the y values (every 1000ms)
-        line1.set_ydata(np.array(y))
-        line2.set_ydata(np.array(y))
-        line3.set_ydata(np.array(y))
-        line4.set_ydata(np.array(y))
-        line5.set_ydata(np.array(y))
-        line6.set_ydata(np.array(y))
-        line7.set_ydata(np.array(y))
-        line8.set_ydata(np.array(y))
-        line9.set_ydata(np.array(y))
-        
-        the_plot.pyplot(plt)
-        y.append(np.random.randint(max_x)) #append y with a random integer between 0 to 100
-    
-    for i in range(200):
-        animate()
-        time.sleep(0.01)
+
+
+
